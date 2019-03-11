@@ -238,6 +238,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/mwitkow/go-conntrack"
+  packages = ["."]
+  revision = "cc309e4a22231782e8893f3c35ced0967807a33e"
+
+[[projects]]
+  branch = "master"
   name = "github.com/operator-framework/operator-sdk"
   packages = [
     "pkg/k8sutil",
@@ -273,6 +279,12 @@
   version = "v0.8.1"
 
 [[projects]]
+  name = "github.com/prometheus/alertmanager"
+  packages = ["config"]
+  revision = "571caec278be1f0dbadfdf5effd0bbea16562cfc"
+  version = "v0.16.1"
+
+[[projects]]
   name = "github.com/prometheus/client_golang"
   packages = [
     "prometheus",
@@ -291,6 +303,7 @@
 [[projects]]
   name = "github.com/prometheus/common"
   packages = [
+    "config",
     "expfmt",
     "internal/bitbucket.org/ww/goautoneg",
     "model"
@@ -375,7 +388,9 @@
     "http/httpguts",
     "http2",
     "http2/hpack",
-    "idna"
+    "idna",
+    "internal/timeseries",
+    "trace"
   ]
   revision = "16b79f2e4e95ea23b2bf9903c9809ff7b013ce85"
 
@@ -716,15 +731,24 @@
     "pkg/client",
     "pkg/client/apiutil",
     "pkg/client/config",
+    "pkg/controller",
+    "pkg/event",
+    "pkg/handler",
+    "pkg/internal/controller",
+    "pkg/internal/controller/metrics",
     "pkg/internal/recorder",
     "pkg/leaderelection",
     "pkg/manager",
     "pkg/metrics",
     "pkg/patch",
+    "pkg/predicate",
+    "pkg/reconcile",
     "pkg/recorder",
     "pkg/runtime/inject",
     "pkg/runtime/log",
     "pkg/runtime/signals",
+    "pkg/source",
+    "pkg/source/internal",
     "pkg/webhook/admission",
     "pkg/webhook/admission/types",
     "pkg/webhook/internal/metrics",
@@ -755,6 +779,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "903667189e43e675727fd3082957bcb0d3f0483c28b378efe4f22e8a2e99d651"
+  inputs-digest = "db00c01dd5cc24cc8755753462c40a680a7c3308bb48039fa62c97fe34334a3c"
   solver-name = "gps-cdcl"
   solver-version = 1

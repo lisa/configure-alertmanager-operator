@@ -1,7 +1,9 @@
+---
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: configure-alertmanager-operator
+  namespace: configure-alertmanager-operator
 rules:
 - apiGroups:
   - ""
@@ -45,3 +47,36 @@ rules:
   - configure-alertmanager-operator
   verbs:
   - "update"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: configure-alertmanager-operator-view
+rules:
+- apiGroups:
+  - ""
+  attributeRestrictions: null
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: configure-alertmanager-operator-edit
+rules:
+- apiGroups:
+  - ""
+  attributeRestrictions: null
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+  - patch
+  - update
+
