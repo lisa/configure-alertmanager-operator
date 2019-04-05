@@ -332,21 +332,30 @@ func updateAlertManagerConfig(r *ReconcileSecret, request *reconcile.Request, am
 func addSnitchSecretToAlertManagerConfig(r *ReconcileSecret, request *reconcile.Request, amconfig *alertmanager.Config, snitchsecret string) {
 
 	fmt.Println("Snitch secret is:", snitchsecret)
-	snitchurl, err := url.Parse(snitchsecret)
-	fmt.Println("Snitch URL is:", snitchurl)
-	if err != nil {
-		panic(err)
-	}
-	log.Info("Successfully parsed URL for Dead Man's Snitch")
-	fmt.Println("URL scheme:", snitchurl.Scheme)
-	fmt.Println("URL host:", snitchurl.Host)
-	fmt.Println("URL path:", snitchurl.Path)
+	//snitchurl, err := url.Parse(snitchsecret)
+	//fmt.Println("Snitch URL is:", snitchurl)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//log.Info("Successfully parsed URL for Dead Man's Snitch")
+	//fmt.Println("URL scheme:", snitchurl.Scheme)
+	//fmt.Println("URL host:", snitchurl.Host)
+	//fmt.Println("URL path:", snitchurl.Path)
 
 	// Define the contents of the WebhookConfig which is part of the Watchdog receiver.
 	// The Watchdog receiver uses the Dead Man's Snitch external service as its webhook.
+	//	snitchconfig := &alertmanager.WebhookConfig{
+	//		URL: &alertmanager.URL{
+	//			URL: snitchurl,
+	//		},
+	//	}
 	snitchconfig := &alertmanager.WebhookConfig{
 		URL: &alertmanager.URL{
-			URL: snitchurl,
+			URL: &url.URL{
+				Scheme: "https",
+				Host:   "nosnch.in",
+				Path:   "/f9f8796e62",
+			},
 		},
 	}
 
