@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 include version.mk
 
-IMAGE_URI=quay.io/redhat/configure-alertmanager-operator
+IMAGE_URI=quay.io/openshift-sre/configure-alertmanager-operator
 
 VERSION_MAJOR=0
 VERSION_MINOR=1
