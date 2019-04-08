@@ -111,7 +111,8 @@ func (r *ReconcileSecret) Reconcile(request reconcile.Request) (reconcile.Result
 		amconfigneedsupdate := false
 		if pagerDutySecretExists {
 			log.Info("Pager Duty secret exists")
-			pdsecret := getSecretKey(r, &request, "pd-secret", "API_KEY")
+			pdsecret := getSecretKey(r, &request, "pd-secret", "PAGERDUTY_KEY")
+			fmt.Println("DEBUG:", string(pdsecret))
 			addPDSecretToAlertManagerConfig(r, &request, &alertmanagerconfig, string(pdsecret))
 			amconfigneedsupdate = true
 		} else {
@@ -121,11 +122,11 @@ func (r *ReconcileSecret) Reconcile(request reconcile.Request) (reconcile.Result
 		}
 		if snitchSecretExists {
 			log.Info("Dead Man's Snitch secret exists")
-			snitchsecret := getSecretKey(r, &request, "dms-secret", "key")
-			fmt.Println("DEBUG snitch URL:", snitchsecret)
+			snitchsecret := getSecretKey(r, &request, "dms-secret", "SNITCH_URL")
+			fmt.Println("DEBUG snitch URL:", string(snitchsecret))
 			fmt.Println("DEBUG: URL in string form:", string(snitchsecret))
-			//addSnitchSecretToAlertManagerConfig(r, &request, &alertmanagerconfig, string(snitchsecret))
-			//amconfigneedsupdate = true
+			addSnitchSecretToAlertManagerConfig(r, &request, &alertmanagerconfig, string(snitchsecret))
+			amconfigneedsupdate = true
 		} else {
 			log.Info("Dead Man's Snitch secret is absent")
 			removeConfigFromAlertManager(r, &request, &alertmanagerconfig, "watchdog")
@@ -174,6 +175,8 @@ func getSecretKey(r *ReconcileSecret, request *reconcile.Request, secretname str
 	// Fetch the key from the secret object.
 	r.client.Get(context.TODO(), objectKey, secret)
 	secretkey := secret.Data[fieldname]
+
+	fmt.Println("DEBUG from getSecretKey", secretname, string(secretkey))
 
 	return secretkey
 }
@@ -331,32 +334,17 @@ func updateAlertManagerConfig(r *ReconcileSecret, request *reconcile.Request, am
 // The changes are kept in memory until committed using function updateAlertManagerConfig().
 func addSnitchSecretToAlertManagerConfig(r *ReconcileSecret, request *reconcile.Request, amconfig *alertmanager.Config, snitchsecret string) {
 
-	fmt.Println("Snitch secret is:", snitchsecret)
-	//snitchurl, err := url.Parse(snitchsecret)
-	//fmt.Println("Snitch URL is:", snitchurl)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//log.Info("Successfully parsed URL for Dead Man's Snitch")
-	//fmt.Println("URL scheme:", snitchurl.Scheme)
-	//fmt.Println("URL host:", snitchurl.Host)
-	//fmt.Println("URL path:", snitchurl.Path)
+	snitchurl, err := url.Parse(snitchsecret)
+	fmt.Println("Snitch URL is:", snitchurl)
+	if err != nil {
+		panic(err)
+	}
+	log.Info("Successfully parsed URL for Dead Man's Snitch")
 
 	// Define the contents of the WebhookConfig which is part of the Watchdog receiver.
 	// The Watchdog receiver uses the Dead Man's Snitch external service as its webhook.
-	//	snitchconfig := &alertmanager.WebhookConfig{
-	//		URL: &alertmanager.URL{
-	//			URL: snitchurl,
-	//		},
-	//	}
 	snitchconfig := &alertmanager.WebhookConfig{
-		URL: &alertmanager.URL{
-			URL: &url.URL{
-				Scheme: "https",
-				Host:   "nosnch.in",
-				Path:   "/f9f8796e62",
-			},
-		},
+		URL: &alertmanager.URL{URL: snitchurl},
 	}
 
 	// Overwrite the existing Watchdog config with the updated version specified above.
