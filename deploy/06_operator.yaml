@@ -16,7 +16,7 @@ spec:
       serviceAccountName: configure-alertmanager-operator
       containers:
         - name: configure-alertmanager-operator
-          image: quay.io/openshift-sre/configure-alertmanager-operator:20190408
+          image: quay.io/openshift-sre/configure-alertmanager-operator:initial_create
           command:
           - configure-alertmanager-operator
           imagePullPolicy: Always

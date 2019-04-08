@@ -21,7 +21,7 @@ check: ## Lint code
 
 .PHONY: dockerbuild
 dockerbuild:
-	docker build -f build/Dockerfile . -t $(IMAGE_URI):20190408
+	docker build -f build/Dockerfile . -t $(IMAGE_URI):initial_create
 
 # This part is done by the docker build
 .PHONY: gobuild
