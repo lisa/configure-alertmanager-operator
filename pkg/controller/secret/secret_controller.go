@@ -233,7 +233,7 @@ func addPDSecretToAlertManagerConfig(r *ReconcileSecret, request *reconcile.Requ
 		},
 	}
 
-	fmt.Println("DEBUG PagerdutyConfig:", pdconfig)
+	fmt.Println("DEBUG PagerdutyConfig in function addPDSecretToAlertManagerConfig:", pdconfig)
 
 	// Overwrite the existing Pager Duty config with the updated version specified above.
 	// This keeps other receivers intact while updating only the Pager Duty receiver.
@@ -258,6 +258,8 @@ func addPDSecretToAlertManagerConfig(r *ReconcileSecret, request *reconcile.Requ
 		}
 		amconfig.Receivers = append(amconfig.Receivers, newreceiver)
 	}
+
+	fmt.Println("DEBUG amconfig in function addPDSecretToAlertManagerConfig:", amconfig)
 
 	// Print some debug output that can be compared against the previous
 	// debug output for amconfig.Receivers to ensure there was a change made.
@@ -300,12 +302,13 @@ func addPDSecretToAlertManagerConfig(r *ReconcileSecret, request *reconcile.Requ
 		amconfig.Route.Routes = append(amconfig.Route.Routes, pdroute)
 	}
 
-	fmt.Println("DEBUG alertmanager config:", amconfig)
+	fmt.Println("DEBUG amconfig in function addPDSecretToAlertManagerConfig:", amconfig)
 }
 
 // updateAlertManagerConfig writes the updated alertmanager config to the `alertmanager-main` secret in namespace `openshift-monitoring`.
 func updateAlertManagerConfig(r *ReconcileSecret, request *reconcile.Request, amconfig *alertmanager.Config) {
 
+	fmt.Println("DEBUG amconfig in function updateAlertManagerConfig:", amconfig)
 	// Marshal the alertmanager config into a []byte so it can be added to the secret.
 	amconfigbyte, marshalerr := yaml.Marshal(amconfig)
 	if marshalerr != nil {
@@ -322,6 +325,7 @@ func updateAlertManagerConfig(r *ReconcileSecret, request *reconcile.Request, am
 		},
 	}
 
+	fmt.Println("DEBUG string(amconfigbyte):", string(amconfigbyte))
 	// Update the alertmanager Secret with the latest alertmanager config.
 	r.client.Update(context.TODO(), secret)
 
