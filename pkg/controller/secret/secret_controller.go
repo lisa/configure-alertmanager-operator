@@ -112,8 +112,7 @@ func (r *ReconcileSecret) Reconcile(request reconcile.Request) (reconcile.Result
 		if pagerDutySecretExists {
 			log.Info("Pager Duty secret exists")
 			pdsecret := getSecretKey(r, &request, "pd-secret", "PAGERDUTY_KEY")
-			fmt.Println("DEBUG:", string(pdsecret))
-			addPDSecretToAlertManagerConfig(r, &request, &alertmanagerconfig, string(pdsecret))
+			addPDSecretToAlertManagerConfig(r, &request, &alertmanagerconfig, pdsecret)
 			amconfigneedsupdate = true
 		} else {
 			log.Info("Pager Duty secret is absent")
@@ -125,7 +124,7 @@ func (r *ReconcileSecret) Reconcile(request reconcile.Request) (reconcile.Result
 			snitchsecret := getSecretKey(r, &request, "dms-secret", "SNITCH_URL")
 			fmt.Println("DEBUG snitch URL:", string(snitchsecret))
 			fmt.Println("DEBUG: URL in string form:", string(snitchsecret))
-			addSnitchSecretToAlertManagerConfig(r, &request, &alertmanagerconfig, string(snitchsecret))
+			addSnitchSecretToAlertManagerConfig(r, &request, &alertmanagerconfig, snitchsecret)
 			amconfigneedsupdate = true
 		} else {
 			log.Info("Dead Man's Snitch secret is absent")
@@ -162,7 +161,7 @@ func secretInList(name string, list *corev1.SecretList) bool {
 }
 
 // getSecretKey fetches the data from a Secret, such as a PagerDuty API key.
-func getSecretKey(r *ReconcileSecret, request *reconcile.Request, secretname string, fieldname string) []byte {
+func getSecretKey(r *ReconcileSecret, request *reconcile.Request, secretname string, fieldname string) string {
 
 	secret := &corev1.Secret{}
 
@@ -176,9 +175,7 @@ func getSecretKey(r *ReconcileSecret, request *reconcile.Request, secretname str
 	r.client.Get(context.TODO(), objectKey, secret)
 	secretkey := secret.Data[fieldname]
 
-	fmt.Println("DEBUG from getSecretKey", secretname, string(secretkey))
-
-	return secretkey
+	return string(secretkey)
 }
 
 // getAlertManagerConfig fetches the AlertManager configuration from its default location.
@@ -218,6 +215,9 @@ func getAlertManagerConfig(r *ReconcileSecret, request *reconcile.Request) alert
 // The changes are kept in memory until committed using function updateAlertManagerConfig().
 func addPDSecretToAlertManagerConfig(r *ReconcileSecret, request *reconcile.Request, amconfig *alertmanager.Config, pdsecret string) {
 
+	fmt.Println("DEBUG pdsecret:", pdsecret)
+	fmt.Println("DEBUG Secret(pdsecret):", alertmanager.Secret(pdsecret))
+
 	// Define the contents of the PagerDutyConfig.
 	pdconfig := &alertmanager.PagerdutyConfig{
 		NotifierConfig: alertmanager.NotifierConfig{VSendResolved: true},
@@ -232,6 +232,8 @@ func addPDSecretToAlertManagerConfig(r *ReconcileSecret, request *reconcile.Requ
 			"resolved":     `{{ template pagerduty.default.instances .Alerts.Resolved }}`,
 		},
 	}
+
+	fmt.Println("DEBUG PagerdutyConfig:", pdconfig)
 
 	// Overwrite the existing Pager Duty config with the updated version specified above.
 	// This keeps other receivers intact while updating only the Pager Duty receiver.
@@ -297,6 +299,8 @@ func addPDSecretToAlertManagerConfig(r *ReconcileSecret, request *reconcile.Requ
 		fmt.Println("Route for Pager Duty Receiver is absent. Creating new Route.")
 		amconfig.Route.Routes = append(amconfig.Route.Routes, pdroute)
 	}
+
+	fmt.Println("DEBUG alertmanager config:", amconfig)
 }
 
 // updateAlertManagerConfig writes the updated alertmanager config to the `alertmanager-main` secret in namespace `openshift-monitoring`.
