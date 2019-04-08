@@ -26,5 +26,7 @@ dockerbuild:
 # This part is done by the docker build
 .PHONY: gobuild
 gobuild: ## Build binary
-	${GOENV} go build ${GOFLAGS} -o ${BINFILE} ${MAINPACKAGE}
+	ls -la ${BINFILE} || echo "does not exist"
+	ls -la ./cmd/manager || echo "does not exist"
+	${GOENV} go build ${GOFLAGS} -a -o ${BINFILE} ${MAINPACKAGE}
 
