@@ -1,5 +1,6 @@
 SHELL := /bin/bash
 include version.mk
+include project.mk
 
 IMAGE_URI=quay.io/openshift-sre/configure-alertmanager-operator
 
@@ -13,6 +14,10 @@ GOFLAGS=-gcflags="all=-trimpath=${GOPATH}" -asmflags="all=-trimpath=${GOPATH}"
 
 .PHONY: all
 all: check dockerbuild
+
+.PHONY: isclean
+isclean:
+	@(test "$(ALLOW_DIRTY_CHECKOUT)" != "false" || test 0 -eq $$(git status --porcelain | wc -l)) || (echo "Local git checkout is not clean, commit changes and try again." && exit 1)
 
 .PHONY: check
 check: ## Lint code
@@ -29,4 +34,12 @@ gobuild: ## Build binary
 	ls -la ${BINFILE} || echo "does not exist"
 	ls -la ./cmd/manager || echo "does not exist"
 	${GOENV} go build ${GOFLAGS} -a -o ${BINFILE} ${MAINPACKAGE}
+
+.PHONY: env
+.SILENT: env
+env: isclean
+	echo OPERATOR_NAME=$(OPERATOR_NAME)
+	echo OPERATOR_NAMESPACE=$(OPERATOR_NAMESPACE)
+	echo OPERATOR_VERSION=$(VERSION_FULL)
+	echo OPERATOR_IMAGE_URI=$(OPERATOR_IMAGE_URI)
 
