@@ -18,9 +18,10 @@ metadata:
   name: configure-alertmanager-operator-edit
   namespace: openshift-monitoring
 roleRef:
+  kind: ClusterRole
+  apiGroup: rbac.authorization.k8s.io
   name: configure-alertmanager-operator-edit
 subjects:
 - kind: ServiceAccount
   name: configure-alertmanager-operator
   namespace: configure-alertmanager-operator
-
