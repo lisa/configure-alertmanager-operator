@@ -22,6 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	alertmanager "github.com/prometheus/alertmanager/config"
+	commoncfg "github.com/prometheus/common/config"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -135,8 +136,9 @@ func (r *ReconcileSecret) Reconcile(request reconcile.Request) (reconcile.Result
 		// Commit any changes to the Alertmanager config.
 		// This takes the changes that are in memory and writes to the kubernetes cluster.
 		if amconfigneedsupdate {
+			amconfigbyte := marshalYAML(&alertmanagerconfig)
 			log.Info("Writing changes to Alertmanager config.")
-			updateAlertManagerConfig(r, &request, &alertmanagerconfig)
+			updateAlertManagerConfig(r, &request, amconfigbyte)
 		}
 
 	} else {
@@ -303,18 +305,17 @@ func addPDSecretToAlertManagerConfig(r *ReconcileSecret, request *reconcile.Requ
 	}
 
 	fmt.Println("DEBUG amconfig in function addPDSecretToAlertManagerConfig:", amconfig)
+
+	pdconfigMarshalled, pdmarshalerr := yaml.Marshal(pdconfig)
+	if pdmarshalerr != nil {
+		log.Error(pdmarshalerr, "Error marshalling PagerDutyConfig")
+		return
+	}
 }
 
 // updateAlertManagerConfig writes the updated alertmanager config to the `alertmanager-main` secret in namespace `openshift-monitoring`.
-func updateAlertManagerConfig(r *ReconcileSecret, request *reconcile.Request, amconfig *alertmanager.Config) {
+func updateAlertManagerConfig(r *ReconcileSecret, request *reconcile.Request, amconfigbyte []byte) {
 
-	fmt.Println("DEBUG amconfig in function updateAlertManagerConfig:", amconfig)
-	// Marshal the alertmanager config into a []byte so it can be added to the secret.
-	amconfigbyte, marshalerr := yaml.Marshal(amconfig)
-	if marshalerr != nil {
-		log.Error(marshalerr, "Error: alertmanager config yaml marshal failed")
-		return
-	}
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "alertmanager-main",
@@ -447,4 +448,113 @@ func removeConfigFromAlertManager(r *ReconcileSecret, request *reconcile.Request
 			fmt.Println("SKipping Route for Receiver named", route.Receiver)
 		}
 	}
+}
+
+// marshalYAML reads an alertmanager config and marshals it into YAML, secrets included.
+// Returns a []byte containing the yaml version of the alertmanager Config.
+func marshalYAML(c *alertmanager.Config) []byte {
+
+	// customPagerdutyConfig is almost an exact copy of alertmanager.PagerdutyConfig,
+	// except it allows printing alertmanager.Secret fields which would otherwise be
+	// unable to be written to our yaml config (specifically the fields for RoutingKey and ServiceKey).
+	// Otherwise alertmanager.Secrets are redacted using their custom alertmanager.String() function.
+	// Unsafe Secrets might soon be supported upstream, but that will depend on the outcome of
+	// this PR https://github.com/prometheus/alertmanager/pull/1804
+	type customPagerdutyConfig struct {
+		alertmanager.NotifierConfig `yaml:",inline" json:",inline"`
+
+		HTTPConfig *commoncfg.HTTPClientConfig `yaml:"http_config,omitempty" json:"http_config,omitempty"`
+
+		ServiceKey  string                        `yaml:"service_key,omitempty" json:"service_key,omitempty"`
+		RoutingKey  string                        `yaml:"routing_key,omitempty" json:"routing_key,omitempty"`
+		URL         *alertmanager.URL             `yaml:"url,omitempty" json:"url,omitempty"`
+		Client      string                        `yaml:"client,omitempty" json:"client,omitempty"`
+		ClientURL   string                        `yaml:"client_url,omitempty" json:"client_url,omitempty"`
+		Description string                        `yaml:"description,omitempty" json:"description,omitempty"`
+		Details     map[string]string             `yaml:"details,omitempty" json:"details,omitempty"`
+		Images      []alertmanager.PagerdutyImage `yaml:"images,omitempty" json:"images,omitempty"`
+		Links       []alertmanager.PagerdutyLink  `yaml:"links,omitempty" json:"links,omitempty"`
+		Severity    string                        `yaml:"severity,omitempty" json:"severity,omitempty"`
+		Class       string                        `yaml:"class,omitempty" json:"class,omitempty"`
+		Component   string                        `yaml:"component,omitempty" json:"component,omitempty"`
+		Group       string                        `yaml:"group,omitempty" json:"group,omitempty"`
+	}
+
+	// customReceiver is a copy of alertmanager.Receiver, but using a custom struct for PagerdutyConfigs.
+	type customReceiver struct {
+		// A unique identifier for this receiver.
+		Name string `yaml:"name" json:"name"`
+
+		EmailConfigs     []*alertmanager.EmailConfig     `yaml:"email_configs,omitempty" json:"email_configs,omitempty"`
+		PagerdutyConfigs []*customPagerdutyConfig        `yaml:"pagerduty_configs,omitempty" json:"pagerduty_configs,omitempty"`
+		HipchatConfigs   []*alertmanager.HipchatConfig   `yaml:"hipchat_configs,omitempty" json:"hipchat_configs,omitempty"`
+		SlackConfigs     []*alertmanager.SlackConfig     `yaml:"slack_configs,omitempty" json:"slack_configs,omitempty"`
+		WebhookConfigs   []*alertmanager.WebhookConfig   `yaml:"webhook_configs,omitempty" json:"webhook_configs,omitempty"`
+		OpsGenieConfigs  []*alertmanager.OpsGenieConfig  `yaml:"opsgenie_configs,omitempty" json:"opsgenie_configs,omitempty"`
+		WechatConfigs    []*alertmanager.WechatConfig    `yaml:"wechat_configs,omitempty" json:"wechat_configs,omitempty"`
+		PushoverConfigs  []*alertmanager.PushoverConfig  `yaml:"pushover_configs,omitempty" json:"pushover_configs,omitempty"`
+		VictorOpsConfigs []*alertmanager.VictorOpsConfig `yaml:"victorops_configs,omitempty" json:"victorops_configs,omitempty"`
+	}
+
+	// intermediaryConfig is a copy of alertmanager.Config, but using a custom struct for Receivers.
+	type intermediaryConfig struct {
+		Global       *alertmanager.GlobalConfig  `yaml:"global,omitempty" json:"global,omitempty"`
+		Route        *alertmanager.Route         `yaml:"route,omitempty" json:"route,omitempty"`
+		InhibitRules []*alertmanager.InhibitRule `yaml:"inhibit_rules,omitempty" json:"inhibit_rules,omitempty"`
+		Receivers    []*customReceiver           `yaml:"receivers,omitempty" json:"receivers,omitempty"`
+		Templates    []string                    `yaml:"templates" json:"templates"`
+
+		// original is the input from which the config was parsed.
+		original string
+	}
+
+	// i stores the value of the alertmanager Config with Pager Duty secrets stored as Strings instead of alertmanager.Secrets.
+	var i intermediaryConfig
+
+	// Copy the original alertmanager.Config into the intermediaryConfig.
+	i.Global = c.Global
+	i.Route = c.Route
+	i.InhibitRules = c.InhibitRules
+	i.Templates = c.Templates
+
+	// Copy all Receivers into the customReceiver struct.
+	for num, receiver := range c.Receivers {
+		fmt.Println("DEBUG receiver in marshalYAML:", *receiver)
+		i.Receivers[num].EmailConfigs = c.Receivers[num].EmailConfigs
+		i.Receivers[num].HipchatConfigs = c.Receivers[num].HipchatConfigs
+		i.Receivers[num].Name = c.Receivers[num].Name
+		i.Receivers[num].OpsGenieConfigs = c.Receivers[num].OpsGenieConfigs
+		i.Receivers[num].PushoverConfigs = c.Receivers[num].PushoverConfigs
+		i.Receivers[num].SlackConfigs = c.Receivers[num].SlackConfigs
+		i.Receivers[num].VictorOpsConfigs = c.Receivers[num].VictorOpsConfigs
+		i.Receivers[num].WebhookConfigs = c.Receivers[num].WebhookConfigs
+		i.Receivers[num].WechatConfigs = c.Receivers[num].WechatConfigs
+
+		// Copy the PagerdutyConfig into the customPagerdutyConfig struct.
+		for n, pagerdutyconfig := range c.Receivers[num].PagerdutyConfigs {
+			i.Receivers[num].PagerdutyConfigs[n].Client = pagerdutyconfig.Client
+			i.Receivers[num].PagerdutyConfigs[n].ClientURL = pagerdutyconfig.ClientURL
+			i.Receivers[num].PagerdutyConfigs[n].Component = pagerdutyconfig.Component
+			i.Receivers[num].PagerdutyConfigs[n].Description = pagerdutyconfig.Description
+			i.Receivers[num].PagerdutyConfigs[n].Details = pagerdutyconfig.Details
+			i.Receivers[num].PagerdutyConfigs[n].Group = pagerdutyconfig.Group
+			i.Receivers[num].PagerdutyConfigs[n].HTTPConfig = pagerdutyconfig.HTTPConfig
+			i.Receivers[num].PagerdutyConfigs[n].Images = pagerdutyconfig.Images
+			i.Receivers[num].PagerdutyConfigs[n].Links = pagerdutyconfig.Links
+			i.Receivers[num].PagerdutyConfigs[n].NotifierConfig = pagerdutyconfig.NotifierConfig
+			i.Receivers[num].PagerdutyConfigs[n].RoutingKey = string(pagerdutyconfig.RoutingKey)
+			i.Receivers[num].PagerdutyConfigs[n].ServiceKey = string(pagerdutyconfig.ServiceKey)
+			i.Receivers[num].PagerdutyConfigs[n].Severity = pagerdutyconfig.Severity
+			i.Receivers[num].PagerdutyConfigs[n].URL = pagerdutyconfig.URL
+			i.Receivers[num].PagerdutyConfigs[n].VSendResolved = pagerdutyconfig.VSendResolved
+		}
+	}
+
+	fmt.Println("Debug customPagerdutyConfig:", i)
+	marshalled, err := yaml.Marshal(i)
+	if err != nil {
+		log.Error(err, "Error marshalling customPagerdutyConfig")
+	}
+	fmt.Println("Debug customPagerdutyConfig Marshalled:", marshalled)
+	return marshalled
 }
