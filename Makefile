@@ -4,6 +4,8 @@ include project.mk
 
 IMAGE_URI=quay.io/openshift-sre/configure-alertmanager-operator
 
+OPERATOR_IMAGE_URI=$(IMAGE_REGISTRY)/$(IMAGE_REPOSITORY)/$(IMAGE_NAME):v$(VERSION_FULL)
+
 VERSION_MAJOR=0
 VERSION_MINOR=1
 
