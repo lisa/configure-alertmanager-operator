@@ -75,8 +75,10 @@ func (r *ReconcileSecret) Reconcile(request reconcile.Request) (reconcile.Result
 	}
 	fmt.Println("DEBUG: Started reconcile loop")
 
-	// This block looks at the specific instance of Secret for each Secret in the `openshift-monitoring` namespace.
-	// In the case of a deleted Secret, such as a Pager Duty secret, the associated Alertmanager config is removed.
+
+	// This block looks at a specific instance of Secret. This is done for each Secret
+	// in the `openshift-monitoring` namespace. In the case of a deleted Secret,
+	// the associated Alertmanager config is removed.
 	instance := &corev1.Secret{}
 	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
@@ -177,7 +179,7 @@ func getSecretKey(r *ReconcileSecret, request *reconcile.Request, secretname str
 // getAlertManagerConfig fetches the AlertManager configuration from its default location.
 // This is equivalent to `oc get secrets -n openshift-monitoring alertmanager-main`.
 // It specifically extracts the .data "alertmanager.yaml" field, and loads it into a resource
-// of type Config, as defined by the Alertmanager package.
+// of type Config, enabling it to be marshalled and unmarshalled as needed.
 func getAlertManagerConfig(r *ReconcileSecret, request *reconcile.Request) alertmanager.Config {
 
 	amconfig := alertmanager.Config{}
@@ -369,38 +371,16 @@ func addSnitchSecretToAlertManagerConfig(r *ReconcileSecret, request *reconcile.
 }
 
 // removeFromReceivers removes the specified index from a slice of Receivers.
-func removeFromReceivers(slice []*alertmanager.Receiver, i int) []*alertmanager.Receiver {
-	// copy all the elements in the slice except for the one we want to delete
-	slicecopy := []*alertmanager.Receiver{}
-	for index, receiver := range slice {
-		if index != i {
-			fmt.Println("DEBUG: The index", index, "doesn't match the element we want to delete:", i, ". So copy it over to slicecopy")
-			slicecopy = append(slicecopy, receiver)
-			fmt.Println("DEBUG: contents of slicecopy so far:")
-			for _, x := range slicecopy {
-				fmt.Println(x)
-			}
-		}
-	}
-	return slicecopy
+
+func removeFromReceivers(r []*alertmanager.Receiver, i int) []*alertmanager.Receiver {
+	r = append(r[:i], r[i+1:]...)
+	return r
 }
 
 // removeFromRoutes removes the specified index from a slice of Routes.
-func removeFromRoutes(slice []*alertmanager.Route, i int) []*alertmanager.Route {
-	// copy all the elements in the slice except for the one we want to delete
-	slicecopy := []*alertmanager.Route{}
-	for index, route := range slice {
-		if index != i {
-			fmt.Println("DEBUG: The index", index, "doesn't match the element we want to delete:", i, ". So copy it over to slicecopy")
-			slicecopy = append(slicecopy, route)
-			fmt.Println("DEBUG: Here are the contents of slicecopy so far:")
-			for _, x := range slicecopy {
-				fmt.Println(x)
-			}
-		}
-	}
-	return slicecopy
-}
+func removeFromRoutes(r []*alertmanager.Route, i int) []*alertmanager.Route {
+	r = append(r[:i], r[i+1:]...)
+	return r
 
 // removeConfigFromAlertManager removes a Receiver config and the associated Route from Alertmanager.
 // The changes are kept in memory until committed using function updateAlertManagerConfig().
@@ -411,8 +391,6 @@ func removeConfigFromAlertManager(r *ReconcileSecret, request *reconcile.Request
 		if receiver.Name == receivername {
 			fmt.Println("DEBUG: Deleting receiver named:", receiver.Name)
 			amconfig.Receivers = removeFromReceivers(amconfig.Receivers, i)
-		} else {
-			fmt.Println("DEBUG: Skipping Receiver named", receiver.Name)
 		}
 	}
 
@@ -421,8 +399,6 @@ func removeConfigFromAlertManager(r *ReconcileSecret, request *reconcile.Request
 		if route.Receiver == receivername {
 			fmt.Println("DEBUG: Deleting Route for Receiver:", route.Receiver)
 			amconfig.Route.Routes = removeFromRoutes(amconfig.Route.Routes, i)
-		} else {
-			fmt.Println("DEBUG: Skipping Route for Receiver named", route)
 		}
 	}
 }
